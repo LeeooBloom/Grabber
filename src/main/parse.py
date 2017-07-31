@@ -1,36 +1,55 @@
 import requests
 from pyquery import PyQuery as pq
 
-URL = 'https://www.piluli.ru/brand/'
+URL = 'https://www.piluli.ru'
+URL_BRAND = 'https://www.piluli.ru/brand/'
 JSON_FILE = 'export.json'
 
 
 def grab_data(url):
     res = requests.get(url, allow_redirects=False)
+    nomenclature_links = []
+    nomenclature_links_file = open('C:\\Grabber\\src\\main\\nomenclature_links.txt', 'w')
     try:
         if res.status_code == 200:
-            parse_brands(res)
+            brand_links = parse_brands_links(res)
+            for brand_link in brand_links:
+                nomenclature_links.extend(collect_nomenclatures_links(brand_link))
         else:
             print('{}: HTTP {}'.format(url, res.status_code))
     except:
         print('Ошибка запроса. {}'.format(url))
-        return None
+    for link in nomenclature_links:
+        nomenclature_links_file.write('%s\n' % link)
+    return nomenclature_links
 
 
-# parse brands and postfix of brand page
-def parse_brands(res):
+# parse postfix of brand page
+def parse_brands_links(res):
     brands = pq(res.text) \
         .find(".brands--grid-item") \
-        .map(lambda i, item: (pq(item).text(), pq(item).attr('href')))
+        .map(lambda i, item: pq(item).attr('href'))
     return brands
 
 
-def collect_nomenclatures_by_brand(brand):
-    return None
+def collect_nomenclatures_links(brand_link):
+    nomenclatures = []
+    target_url = URL + '{}'.format(brand_link) + '{}'
+    i = 2
+    res = requests.get(target_url.format(''))
+    while (True):
+        nomenclatures.extend(set(pq(res.text)
+                                 .find('.item-name')
+                                 .map(lambda i, item: pq(item).find('a').attr('href'))))
+        res = requests.get(target_url.format('/page{}'.format(i)))
+        if (res.url == target_url.format('')):
+            break
+        i += 1
+    return nomenclatures
 
 
 def main():
-    grab_data(URL)
+    grab_data(URL_BRAND)
     return None
 
 
