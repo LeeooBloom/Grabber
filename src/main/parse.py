@@ -1,27 +1,43 @@
 import requests
 from pyquery import PyQuery as pq
 
-URL = 'https://www.piluli.ru'
+URL = 'https://www.piluli.ru{}'
 URL_BRAND = 'https://www.piluli.ru/brand/'
+CATEGORY_URL = 'https://www.piluli.ru/categories.html'
 JSON_FILE = 'export.json'
 
 
 def grab_data(url):
     res = requests.get(url, allow_redirects=False)
-    nomenclature_links = []
-    nomenclature_links_file = open('C:\\Grabber\\src\\main\\nomenclature_links.txt', 'w')
-    try:
-        if res.status_code == 200:
-            brand_links = parse_brands_links(res)
-            for brand_link in brand_links:
-                nomenclature_links.extend(collect_nomenclatures_links(brand_link))
-        else:
-            print('{}: HTTP {}'.format(url, res.status_code))
-    except:
-        print('Ошибка запроса. {}'.format(url))
+    nomenclature_links_file = open(
+        'C:\\Users\\rojdestvenskii\\PycharmProjects\\Grabber\\src\\main\\nomenclature_links_1.txt', 'w')
+    nomenclature_links = parse_category_links(CATEGORY_URL)
     for link in nomenclature_links:
         nomenclature_links_file.write('%s\n' % link)
     return nomenclature_links
+
+
+def parse_category_links(url):
+    nomenclatures = []
+    res = requests.get(url, allow_redirects=False)
+    content = pq(res.text)
+    category_links = content('a[href^="/category"]') \
+        .map(lambda i, data: pq(data).attr('href')) \
+        .filter(lambda i, text: "index.html" not in text)
+    for link in category_links:
+        content = pq(requests.get(URL.format(link) + "/index.html", allow_redirects=False).text)
+        first_level_ids = content.find('li').map(lambda i, li: pq(li).attr('data-id'))
+        for first_level_id in first_level_ids:
+            first_level_url = URL.format(link) + '_{}'.format(first_level_id) + "/index.html"
+            first_level_content = pq(requests.get(first_level_url, allow_redirects=False).text)
+            second_level_ids = first_level_content.find('li').map(lambda i, li: pq(li).attr('data-id'))
+            for second_level_id in second_level_ids:
+                second_level_url = URL.format(link) + '_{}'.format(first_level_id) \
+                                   + '_{}'.format(second_level_id) + "/index.html"
+                second_level_content = pq(requests.get(second_level_url, allow_redirects=False).text)
+                if (second_level_content('a[href^="/category"]') > 0):
+                    nomenclatures.extend(parse_category_links(second_level_url))
+    return nomenclatures
 
 
 # parse postfix of brand page
@@ -32,24 +48,24 @@ def parse_brands_links(res):
     return brands
 
 
-def collect_nomenclatures_links(brand_link):
+def collect_nomenclatures_links(link):
     nomenclatures = []
-    target_url = URL + '{}'.format(brand_link) + '{}'
+    target_url = link + '{}'
     i = 2
     res = requests.get(target_url.format(''))
     while (True):
         nomenclatures.extend(set(pq(res.text)
                                  .find('.item-name')
                                  .map(lambda i, item: pq(item).find('a').attr('href'))))
-        res = requests.get(target_url.format('/page{}'.format(i)))
-        if (res.url == target_url.format('')):
+        res = requests.get(target_url.format('?page={}'.format(i)), allow_redirects=False)
+        if (res.status_code > 300):
             break
         i += 1
     return nomenclatures
 
 
 def main():
-    grab_data(URL_BRAND)
+    grab_data(CATEGORY_URL)
     return None
 
 
