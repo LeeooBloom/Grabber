@@ -11,7 +11,7 @@ def grab_data(url):
     res = requests.get(url, allow_redirects=False)
     nomenclature_links_file = open(
         'C:\\Users\\rojdestvenskii\\PycharmProjects\\Grabber\\src\\main\\nomenclature_links_1.txt', 'w')
-    nomenclature_links = parse_category_links(CATEGORY_URL)
+    nomenclature_links = parse_category_rec(CATEGORY_URL, '')
     for link in nomenclature_links:
         nomenclature_links_file.write('%s\n' % link)
     return nomenclature_links
@@ -38,6 +38,21 @@ def parse_category_links(url):
                 if (second_level_content('a[href^="/category"]') > 0):
                     nomenclatures.extend(parse_category_links(second_level_url))
     return nomenclatures
+
+
+def parse_category_rec(url, postfix):
+    url = url + postfix
+    nomenclatures = []
+    content = pq(requests.get(url).text)
+    content_ids = content.find('li').map(lambda i, li: pq(li).attr('data-id'))
+    target_url = URL.format("/category" + postfix)
+    for content_id in content_ids:
+        if (content('a[href^="/category"]').length == 0):
+            return nomenclatures.extend(collect_nomenclatures_links(target_url.format(content_id)))
+        elif url in CATEGORY_URL:
+            return parse_category_rec(target_url, content_id)
+        else:
+            return parse_category_rec(target_url.format(content_id), '_{}')
 
 
 # parse postfix of brand page
