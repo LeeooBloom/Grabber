@@ -10,11 +10,20 @@ JSON_FILE = 'export.json'
 def grab_data(url):
     res = requests.get(url, allow_redirects=False)
     nomenclature_links_file = open(
-        'C:\\Users\\rojdestvenskii\\PycharmProjects\\Grabber\\src\\main\\nomenclature_links_1.txt', 'w')
-    nomenclature_links = parse_category_rec(CATEGORY_URL, '')
-    for link in nomenclature_links:
+        'C:\\Grabber\\src\\main\\nomenclature_links_1.txt', 'w')
+    nomenclature_links = []
+    parse_category_rec(CATEGORY_URL, nomenclature_links)
+    for link in set(nomenclature_links):
         nomenclature_links_file.write('%s\n' % link)
     return nomenclature_links
+
+
+def write_unique_nomenclature_links():
+    lines = [line.rstrip('\n') for line in open("C:\\Grabber\\src\\main\\nomenclature_links_1.txt")]
+    unique_lines = set(lines)
+    file = open('C:\\Grabber\\src\\main\\unique_links.txt', 'w')
+    for line in unique_lines:
+        file.write('%s\n' % line)
 
 
 def parse_category_links(url):
@@ -40,19 +49,17 @@ def parse_category_links(url):
     return nomenclatures
 
 
-def parse_category_rec(url, postfix):
-    url = url + postfix
-    nomenclatures = []
+def parse_category_rec(url, nomenclatures):
     content = pq(requests.get(url).text)
     content_ids = content.find('li').map(lambda i, li: pq(li).attr('data-id'))
-    target_url = URL.format("/category" + postfix)
-    for content_id in content_ids:
-        if (content('a[href^="/category"]').length == 0):
-            return nomenclatures.extend(collect_nomenclatures_links(target_url.format(content_id)))
-        elif url in CATEGORY_URL:
-            return parse_category_rec(target_url, content_id)
-        else:
-            return parse_category_rec(target_url.format(content_id), '_{}')
+    if content_ids.length == 0:
+        nomenclatures.extend(collect_nomenclatures_links(url))
+    else:
+        for content_id in content_ids:
+            if url in CATEGORY_URL:
+                parse_category_rec(URL.format("/category") + content_id, nomenclatures)
+            else:
+                parse_category_rec(url + '_{}'.format(content_id), nomenclatures)
 
 
 # parse postfix of brand page
@@ -65,7 +72,7 @@ def parse_brands_links(res):
 
 def collect_nomenclatures_links(link):
     nomenclatures = []
-    target_url = link + '{}'
+    target_url = link + '/index.html' + '{}'
     i = 2
     res = requests.get(target_url.format(''))
     while (True):
@@ -80,7 +87,7 @@ def collect_nomenclatures_links(link):
 
 
 def main():
-    grab_data(CATEGORY_URL)
+    write_unique_nomenclature_links()
     return None
 
 
